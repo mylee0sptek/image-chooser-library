@@ -32,6 +32,8 @@ import com.kbeanie.imagechooser.exceptions.ChooserException;
 import com.kbeanie.imagechooser.threads.ImageProcessorListener;
 import com.kbeanie.imagechooser.threads.ImageProcessorThread;
 
+import java.io.File;
+
 /**
  * Easy Image Chooser Library for Android Apps. Forget about coding workarounds
  * for different devices, OSes and folders.
@@ -211,6 +213,9 @@ public class ImageChooserManager extends BChooser implements
             case ChooserType.REQUEST_CAPTURE_PICTURE:
                 path = takePicture();
                 break;
+            case ChooserType.REQUEST_CAPTURE_OR_PICK_PICTURE:
+                path = takeOrChoosePicture();
+                break;
             default:
                 throw new ChooserException(
                         "Cannot choose a video in ImageChooserManager");
@@ -248,6 +253,32 @@ public class ImageChooserManager extends BChooser implements
         return filePathOriginal;
     }
 
+    private String takeOrChoosePicture() throws ChooserException {
+        checkDirectory();
+        try {
+            Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+            contentSelectionIntent.setType("image/*");
+            if (extras != null) {
+                contentSelectionIntent.putExtras(extras);
+            }
+            Intent captureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            filePathOriginal = buildFilePathOriginal(foldername, "jpg");
+            captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, buildCaptureUri(filePathOriginal));
+            if (extras != null) {
+                captureIntent.putExtras(extras);
+            }
+            final Intent[] intentArray = new Intent[]{captureIntent};
+            Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+            chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+            chooserIntent.putExtra(Intent.EXTRA_TITLE, "Image Chooser");
+            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+            startActivity(chooserIntent);
+        } catch (ActivityNotFoundException e) {
+            throw new ChooserException(e);
+        }
+        return filePathOriginal;
+    }
+
     @Override
     public void submit(int requestCode, Intent data) {
         if (requestCode != type) {
@@ -259,6 +290,9 @@ public class ImageChooserManager extends BChooser implements
                     break;
                 case ChooserType.REQUEST_CAPTURE_PICTURE:
                     processCameraImage();
+                    break;
+                case ChooserType.REQUEST_CAPTURE_OR_PICK_PICTURE:
+                    processTakeOrChooseImage(data);
                     break;
             }
         }
@@ -294,6 +328,15 @@ public class ImageChooserManager extends BChooser implements
                 foldername, shouldCreateThumbnails);
         thread.setListener(this);
         thread.start();
+    }
+
+    private void processTakeOrChooseImage(Intent data) {
+        final File path = new File(filePathOriginal);
+        if (path.exists()) {
+            processCameraImage();
+        } else {
+            processImageFromGallery(data);
+        }
     }
 
     @Override
