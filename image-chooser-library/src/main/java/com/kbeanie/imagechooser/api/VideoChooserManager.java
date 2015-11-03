@@ -228,6 +228,8 @@ public class VideoChooserManager extends BChooser implements
                 thread.setContext(getContext());
                 thread.start();
             }
+        } else {
+            onError("Video Uri was null!");
         }
     }
 
