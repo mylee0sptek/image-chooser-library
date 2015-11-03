@@ -33,6 +33,8 @@ import com.kbeanie.imagechooser.exceptions.ChooserException;
 import com.kbeanie.imagechooser.threads.VideoProcessorListener;
 import com.kbeanie.imagechooser.threads.VideoProcessorThread;
 
+import java.io.File;
+
 /**
  * Easy Image Chooser Library for Android Apps. Forget about coding workarounds
  * for different devices, OSes and folders.
@@ -138,6 +140,9 @@ public class VideoChooserManager extends BChooser implements
             case ChooserType.REQUEST_PICK_VIDEO:
                 pickVideo();
                 break;
+            case ChooserType.REQUEST_CAPTURE_OR_PICK_VIDEO:
+                path = captureOrPickVideo();
+                break;
             default:
                 throw new ChooserException(
                         "Cannot choose an image in VideoChooserManager");
@@ -198,6 +203,35 @@ public class VideoChooserManager extends BChooser implements
         }
     }
 
+    private String captureOrPickVideo() throws ChooserException {
+        checkDirectory();
+        try {
+            Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+            if (extras != null) {
+                contentSelectionIntent.putExtras(extras);
+            }
+            contentSelectionIntent.setType("video/*");
+            Intent captureIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+            int sdk = Build.VERSION.SDK_INT;
+            if (sdk < Build.VERSION_CODES.GINGERBREAD || sdk > Build.VERSION_CODES.GINGERBREAD_MR1) {
+                filePathOriginal = buildFilePathOriginal(foldername, "mp4");
+                captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, buildCaptureUri(filePathOriginal));
+            }
+            if (extras != null) {
+                captureIntent.putExtras(extras);
+            }
+            final Intent[] intentArray = new Intent[]{captureIntent};
+            Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+            chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+            chooserIntent.putExtra(Intent.EXTRA_TITLE, "Video Chooser");
+            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+            startActivity(chooserIntent);
+        } catch (ActivityNotFoundException e) {
+            throw new ChooserException(e);
+        }
+        return filePathOriginal;
+    }
+
     @Override
     public void submit(int requestCode, Intent data) {
         switch (type) {
@@ -206,6 +240,9 @@ public class VideoChooserManager extends BChooser implements
                 break;
             case ChooserType.REQUEST_CAPTURE_VIDEO:
                 processCameraVideo(data);
+                break;
+            case ChooserType.REQUEST_CAPTURE_OR_PICK_VIDEO:
+                processTakeOrChooseVideo(data);
                 break;
         }
     }
@@ -249,6 +286,15 @@ public class VideoChooserManager extends BChooser implements
         thread.setListener(this);
         thread.setContext(getContext());
         thread.start();
+    }
+
+    private void processTakeOrChooseVideo(Intent data) {
+        final File path = new File(filePathOriginal);
+        if (path.exists()) {
+            processCameraVideo(data);
+        } else {
+            processVideoFromGallery(data);
+        }
     }
 
     @Override
