@@ -19,6 +19,9 @@
 package com.kbeanie.imagechooser.api;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -147,6 +150,21 @@ public abstract class BChooser {
         if (!directory.exists()) {
             if (!directory.mkdirs() && !directory.isDirectory()) {
                 throw new ChooserException("Error creating directory: " + directory);
+            }
+        }
+        // add .nomdeia
+        final File noMedia = new File(directory, ".nomedia");
+        FileOutputStream fileOutputStream = null;
+        try {
+            fileOutputStream = new FileOutputStream(noMedia);
+        } catch (FileNotFoundException e) {
+            // PASS
+        }
+        if (fileOutputStream != null) {
+            try {
+                fileOutputStream.close();
+            } catch (IOException e) {
+                // PASS
             }
         }
     }
